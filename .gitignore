@@ -8,3 +8,7 @@ Debug/
 .vs/raytracer/v16/.suo
 
 .vs/raytracer/v16/Browse.VC.opendb
+
+*.db
+
+*.ipch
