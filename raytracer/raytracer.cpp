@@ -7,100 +7,31 @@
 #include <iostream>
 #include <mutex>
 
-const int n_threads = 4;
-
-const int width = 800;
+const int n_threads = 8;
+const int drawinterval = 25; // percentage
 char* imageFileName = (char*)"result.bmp";
 
-const int drawinterval = 20; // percentage
+static unsigned char image[CAMSIZE][CAMSIZE][BYTES_PER_PIXEL];
 
-
-static unsigned char image[width][width][BYTES_PER_PIXEL];
-
-int drawmod = drawinterval / 100.0f * width * width;
+// variables for drawing (to bmp) during the image rendering process
+int drawmod = drawinterval / 100.0f * CAMSIZE * CAMSIZE;
 int drawnpercentage = 0;
 int drawnpixels = 0;
 
 std::mutex mtx;
 
-std::vector<Triangle> scene;
-
 Camera camera;
 
 
-
-//bad wait function
-void badwait() {
-    for (int i = 0; i < 1000000000; i++);
-}
-
-void drawImageToBMP() {
-    //screen = onormaliserad;
-    //find max och min
-    //screen/max
-    
-    double imax = 0;
-    for (int y = 0; y < width; y++) {
-        for (int x = 0; x < width; x++) {
-            if (imax < camera.screen[x][y].x)
-                imax = camera.screen[x][y].x;
-            if (imax < camera.screen[x][y].y)
-                imax = camera.screen[x][y].y;
-            if (imax < camera.screen[x][y].z)
-                imax = camera.screen[x][y].z;
-        }
-    }
-    for (int y = 0; y < width; y++) {
-        for (int x = 0; x < width; x++) {
-            //draw pixel
-            image[x][y][2] = (unsigned char)(camera.screen[x][y].x * 255.99 / imax);            ///red
-            image[x][y][1] = (unsigned char)(camera.screen[x][y].y * 255.99 / imax);            ///green
-            image[x][y][0] = (unsigned char)(camera.screen[x][y].z * 255.99 / imax);            ///blue
-        }
-    }
-
-    generateBitmapImage((unsigned char*)image, width, width, imageFileName);
-    drawnpercentage += drawinterval;
-    std::cout << drawnpercentage << "% rendered\n";
-    //badwait(); //for testing
-}
-
-// render a vertical segment of the image, placeholder rgb values instead of raytraced values
-void rendersegment(int starty, int endy, int r, int g, int b) {
-    // xy for 2d image, not representative of actual 3d-space
-    for (int y = starty; y < endy; y++) {
-        for (int x= 0; x < width; x++) {
-            //decide pixel color here (aka do raytracing)
-            Vector3 color = camera.calculate_pixel_color(x, y);
-
-            //draw pixel in image and ocasionally render to bmp
-            mtx.lock();
-            {
-                camera.render_pixel(x, y, color);
-
-                //render to bmp in interval
-                if (++drawnpixels % drawmod == 0) {
-                    drawImageToBMP();
-                }
-            }
-            mtx.unlock();
-        }
-    }
-}
-
-
+void renderScene();
+void renderSegment(int starty, int endy);
+void drawImageToBMP();
+void addRoom();
 
 int main()
 {
-
-    Vector3 vertex1 = Vector3(4.0, -1.0, -1.0);
-    Vector3 vertex2 = Vector3(4.0, -1.0, 1.0);
-    Vector3 vertex3 = Vector3(4.0, 1.0, 0.0);
-    Vector3 color = Vector3(0.8, 0.6, 0.1);
-    Triangle test_triangle = Triangle(vertex1, vertex2, vertex3, color, 0);
-
-    triangles.push_back(test_triangle);
-
+    addRoom();
+    renderScene();
 
     /*
     Vector3 test_vector_add = test_vector1 + test_vector2;
@@ -116,12 +47,16 @@ int main()
     std::cout << "dot product (1.0, 2.0, 3.0) dot  (0.0, 1.0, 2.0) = " << Vector3(1.0, 2.0, 3.0).dot(Vector3(0.0, 1.0, 2.0)) << "\n";
     */
 
+}
+
+void renderScene()
+{
     std::array<std::thread, n_threads> threads;
     for (int i = 0; i < n_threads; i++) {
-        int start = i * width / n_threads;
-        int end = (i + 1) * width / n_threads;
+        int start = i * CAMSIZE / n_threads;
+        int end = (i + 1) * CAMSIZE / n_threads;
         std::cout << "thread " << i << " assigned to height " << start << "-" << end << "\n";
-        threads[i] = std::thread(rendersegment, start, end, 0, 0, i * 255 / n_threads);
+        threads[i] = std::thread(renderSegment, start, end);
     }
 
     std::cout << "Rendering started:\n";
@@ -129,8 +64,126 @@ int main()
     for (int i = 0; i < n_threads; i++)
         threads[i].join();
 
-    generateBitmapImage((unsigned char*)image, width, width, imageFileName);
+    generateBitmapImage((unsigned char*)image, CAMSIZE, CAMSIZE, imageFileName);
     std::cout << "Image completed.";
+}
+
+// render a vertical segment of the image, placeholder rgb values instead of raytraced values
+void renderSegment(int starty, int endy)
+{
+    // xy for 2d image, not representative of actual 3d-space
+    for (int y = starty; y < endy; y++) {
+        for (int x = 0; x < CAMSIZE; x++) {
+            //decide pixel color here (aka do raytracing)
+            Vector3 color = camera.calculate_pixel_color(x, y);
+
+            //draw pixel in camera.screen and ocasionally render to bmp
+            mtx.lock();
+            {
+                camera.render_pixel(x, y, color);
+
+                //render to bmp in interval
+                if (++drawnpixels % drawmod == 0) {
+                    drawImageToBMP();
+                }
+            }
+            mtx.unlock();
+        }
+    }
+}
+
+void drawImageToBMP() {
+    double imax = 0;
+    for (int y = 0; y < CAMSIZE; y++) {
+        for (int x = 0; x < CAMSIZE; x++) {
+            if (imax < camera.screen[x][y].x)
+                imax = camera.screen[x][y].x;
+            if (imax < camera.screen[x][y].y)
+                imax = camera.screen[x][y].y;
+            if (imax < camera.screen[x][y].z)
+                imax = camera.screen[x][y].z;
+        }
+    }
+
+    // ALSO DO SQRT OR LOG OF SCREEN VALUES SOMEWHERE HERE
+
+    for (int y = 0; y < CAMSIZE; y++) {
+        for (int x = 0; x < CAMSIZE; x++) {
+            //image is defined as image[y][x][c], where c=3: alpha, c=2,1,0: rgb
+            image[y][x][2] = (unsigned char)(camera.screen[x][y].x * 255.99 / imax);            ///red
+            image[y][x][1] = (unsigned char)(camera.screen[x][y].y * 255.99 / imax);            ///green
+            image[y][x][0] = (unsigned char)(camera.screen[x][y].z * 255.99 / imax);            ///blue
+        }
+    }
+
+    generateBitmapImage((unsigned char*)image, CAMSIZE, CAMSIZE, imageFileName);
+    drawnpercentage += drawinterval;
+    std::cout << drawnpercentage << "% rendered\n";
+}
+
+void addRoom()
+{
+    // directions based on lec6 image for "the world"
+    // BUT! y is the vertical axis here
+    // AND! y = -z, x = x
+    // as in: x goes right, y goes up, z goes out of your screen  (standard way? I think)
+
+    // lower plane
+    Vector3 bot0 = Vector3(5.0, -5.0, 0.0);     // mid
+    Vector3 bot1 = Vector3(-3.0, -5.0, 0.0);    // left
+    Vector3 bot2 = Vector3(0.0, -5.0, -6.0);     // up-left
+    Vector3 bot3 = Vector3(10.0, -5.0, -6.0);    // up-right
+    Vector3 bot4 = Vector3(13.0, -5.0, 0.0);    // right
+    Vector3 bot5 = Vector3(10.0, -5.0, 6.0);   // down-right
+    Vector3 bot6 = Vector3(0.0, -5.0, 6.0);    // down-left
+
+    //upper plane
+    Vector3 up0 = Vector3(5.0, 5.0, 0.0);     // mid
+    Vector3 up1 = Vector3(-3.0, 5.0, 0.0);    // left
+    Vector3 up2 = Vector3(0.0, 5.0, -6.0);     // up-left
+    Vector3 up3 = Vector3(10.0, 5.0, -6.0);    // up-right
+    Vector3 up4 = Vector3(13.0, 5.0, 0.0);    // right
+    Vector3 up5 = Vector3(10.0, 5.0, 6.0);   // down-right
+    Vector3 up6 = Vector3(0.0, 5.0, 6.0);    // down-left
+
+    Vector3 floor1 = Vector3(0.3, 0.1, 0.2);
+    Vector3 floor2 = Vector3(0.3, 0.2, 0.1);
+    Vector3 roof1 = Vector3(0.1, 0.4, 0.2);
+    Vector3 roof2 = Vector3(0.2, 0.4, 0.1);
+    Vector3 wall1 = Vector3(0.2, 0.2, 0.4);
+    Vector3 wall2 = Vector3(0.1, 0.2, 0.4);
+
+    // lower plane triangles
+    triangles.push_back(Triangle(bot1, bot0, bot2, floor1, DIFFUSE));
+    triangles.push_back(Triangle(bot2, bot0, bot3, floor2, DIFFUSE));
+    triangles.push_back(Triangle(bot3, bot0, bot4, floor1, DIFFUSE));
+    triangles.push_back(Triangle(bot4, bot0, bot5, floor2, DIFFUSE));
+    triangles.push_back(Triangle(bot5, bot0, bot6, floor1, DIFFUSE));
+    triangles.push_back(Triangle(bot6, bot0, bot1, floor2, DIFFUSE));
+
+    // upper plane triangles (opposite order for reversed normals
+    triangles.push_back(Triangle(up2, up0, up1, roof1, DIFFUSE));
+    triangles.push_back(Triangle(up3, up0, up2, roof2, DIFFUSE));
+    triangles.push_back(Triangle(up4, up0, up3, roof1, DIFFUSE));
+    triangles.push_back(Triangle(up5, up0, up4, roof2, DIFFUSE));
+    triangles.push_back(Triangle(up6, up0, up5, roof1, DIFFUSE));
+    triangles.push_back(Triangle(up1, up0, up6, roof2, DIFFUSE));
+
+    // first set of wall triangles ("bottom left half")
+    triangles.push_back(Triangle(bot1, bot2, up1, wall1, DIFFUSE));
+    triangles.push_back(Triangle(bot2, bot3, up2, wall1, DIFFUSE));
+    triangles.push_back(Triangle(bot3, bot4, up3, wall1, DIFFUSE));
+    triangles.push_back(Triangle(bot4, bot5, up4, wall1, DIFFUSE));
+    triangles.push_back(Triangle(bot5, bot6, up5, wall1, DIFFUSE));
+    triangles.push_back(Triangle(bot6, bot1, up6, wall1, DIFFUSE));
+
+    // second set of wall triangles ("top right half")
+    triangles.push_back(Triangle(bot1, up1, up6, wall2, DIFFUSE));
+    triangles.push_back(Triangle(bot2, up2, up1, wall2, DIFFUSE));
+    triangles.push_back(Triangle(bot3, up3, up2, wall2, DIFFUSE));
+    triangles.push_back(Triangle(bot4, up4, up3, wall2, DIFFUSE));
+    triangles.push_back(Triangle(bot5, up5, up4, wall2, DIFFUSE));
+    triangles.push_back(Triangle(bot6, up6, up5, wall2, DIFFUSE));
 }
 
 

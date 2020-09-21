@@ -60,7 +60,7 @@ public:
 
     Vector3 normalize()
     {
-        return (*this).mult(sqrt(x * x + y * y + z * z));
+        return (*this).mult(1/abs());
     }
 
     double dot(Vector3 inV)
@@ -104,9 +104,6 @@ const int DIFFUSE = 0;
 const int MIRROR = 1;
 const int GLASS = 2;
 
-
-
-
 struct Triangle{
 public:
     Vector3 v0;
@@ -132,7 +129,10 @@ public:
         Vector3 side1 = v1 - v0;
         Vector3 side2 = v2 - v0;
 
-        normal = side1.cross(side2);
+        normal = side1.cross(side2).normalize();
+        std::cout << side1 << " cross ";
+        std::cout << side2 << "  : ";
+        std::cout << normal << "\n";
 	}
 
     float rayIntersection(Ray &r)
@@ -156,6 +156,7 @@ public:
 
 std::vector<Triangle> triangles;
 
+const int CAMSIZE = 800;
 
 class Camera {
 public:
@@ -165,16 +166,15 @@ public:
     Vector3 view_direction;
 
 
-    static const int width = 800;
-    Vector3 screen[width][width];
+    Vector3 screen[CAMSIZE][CAMSIZE];
 
-    double  pixel_size = 1.0 / (width / 2.0);;
+    double  pixel_size = 1.0 / (CAMSIZE / 2.0);;
 
     Camera() 
     {
        //fill screen with zero
-        for (int i = 0; i < width; i++) {
-            for (int j = 0; j < width; j++) {
+        for (int i = 0; i < CAMSIZE; i++) {
+            for (int j = 0; j < CAMSIZE; j++) {
                 screen[i][j] = Vector3(); // zero vector
             }
         }
@@ -184,7 +184,7 @@ public:
     Vector3 calculate_pixel_color(int x, int y) 
     {
         // calculate pixel-plane position
-        Vector3 pixel_position = camera_position + Vector3(offset, (y - width/2) * pixel_size, (x - width/2) * pixel_size);
+        Vector3 pixel_position = camera_position + Vector3(offset, (y - CAMSIZE /2) * pixel_size, (x - CAMSIZE /2) * pixel_size);
         //ABOVE PIXEL COORDS MIGHT BE WRONG
 
         // Send ray towards position
@@ -205,8 +205,8 @@ public:
         }
 
         //TEMP return triangle color if hit or black if miss
-        if (min_t > 0.0001 && triangle_index != -1) 
-            return triangles[triangle_index].color;
+        if (min_t > 0.0001 && triangle_index != -1)
+            return triangles[triangle_index].color; //.mult(triangles[triangle_index].normal.dot(r.end_point - r.start_point));
         else
             return Vector3();
     }
