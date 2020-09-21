@@ -12,3 +12,7 @@ Debug/
 *.db
 
 *.ipch
+
+*.vcxproj
+
+*.filters
