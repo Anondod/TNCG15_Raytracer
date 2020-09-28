@@ -218,6 +218,10 @@ public:
     }
 };
 
+class Scene {
+
+};
+
 
 /*
 ColorDbl getLightFromDirection(Vertex start, Vertex dir) {

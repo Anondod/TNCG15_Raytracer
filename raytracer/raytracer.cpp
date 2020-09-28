@@ -146,44 +146,46 @@ void addRoom()
     Vector3 up5 = Vector3(10.0, 5.0, 6.0);   // down-right
     Vector3 up6 = Vector3(0.0, 5.0, 6.0);    // down-left
 
-    Vector3 floor1 = Vector3(0.3, 0.1, 0.2);
-    Vector3 floor2 = Vector3(0.3, 0.2, 0.1);
-    Vector3 roof1 = Vector3(0.1, 0.4, 0.2);
-    Vector3 roof2 = Vector3(0.2, 0.4, 0.1);
-    Vector3 wall1 = Vector3(0.2, 0.2, 0.4);
-    Vector3 wall2 = Vector3(0.1, 0.2, 0.4);
+    //colors
+    Vector3 cl_white = Vector3(1.0, 1.0, 1.0);
+    Vector3 cl_1 = Vector3(0.1, 0.4, 0.9);
+    Vector3 cl_2 = Vector3(0.8, 0.3, 0.1);
+    Vector3 cl_3 = Vector3(0.1, 0.4, 0.2);
+    Vector3 cl_4 = Vector3(0.1, 0.7, 0.6);
+    Vector3 cl_5 = Vector3(0.9, 0.9, 0.2);
+    Vector3 cl_6 = Vector3(0.1, 0.0, 0.7);
 
     // lower plane triangles
-    triangles.push_back(Triangle(bot1, bot0, bot2, floor1, DIFFUSE));
-    triangles.push_back(Triangle(bot2, bot0, bot3, floor2, DIFFUSE));
-    triangles.push_back(Triangle(bot3, bot0, bot4, floor1, DIFFUSE));
-    triangles.push_back(Triangle(bot4, bot0, bot5, floor2, DIFFUSE));
-    triangles.push_back(Triangle(bot5, bot0, bot6, floor1, DIFFUSE));
-    triangles.push_back(Triangle(bot6, bot0, bot1, floor2, DIFFUSE));
+    triangles.push_back(Triangle(bot1, bot0, bot2, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(bot2, bot0, bot3, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(bot3, bot0, bot4, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(bot4, bot0, bot5, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(bot5, bot0, bot6, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(bot6, bot0, bot1, cl_white, DIFFUSE));
 
     // upper plane triangles (opposite order for reversed normals
-    triangles.push_back(Triangle(up2, up0, up1, roof1, DIFFUSE));
-    triangles.push_back(Triangle(up3, up0, up2, roof2, DIFFUSE));
-    triangles.push_back(Triangle(up4, up0, up3, roof1, DIFFUSE));
-    triangles.push_back(Triangle(up5, up0, up4, roof2, DIFFUSE));
-    triangles.push_back(Triangle(up6, up0, up5, roof1, DIFFUSE));
-    triangles.push_back(Triangle(up1, up0, up6, roof2, DIFFUSE));
+    triangles.push_back(Triangle(up2, up0, up1, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(up3, up0, up2, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(up4, up0, up3, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(up5, up0, up4, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(up6, up0, up5, cl_white, DIFFUSE));
+    triangles.push_back(Triangle(up1, up0, up6, cl_white, DIFFUSE));
 
     // first set of wall triangles ("bottom left half")
-    triangles.push_back(Triangle(bot1, bot2, up1, wall1, DIFFUSE));
-    triangles.push_back(Triangle(bot2, bot3, up2, wall1, DIFFUSE));
-    triangles.push_back(Triangle(bot3, bot4, up3, wall1, DIFFUSE));
-    triangles.push_back(Triangle(bot4, bot5, up4, wall1, DIFFUSE));
-    triangles.push_back(Triangle(bot5, bot6, up5, wall1, DIFFUSE));
-    triangles.push_back(Triangle(bot6, bot1, up6, wall1, DIFFUSE));
+    triangles.push_back(Triangle(bot1, bot2, up1, cl_1, DIFFUSE));
+    triangles.push_back(Triangle(bot2, bot3, up2, cl_2, DIFFUSE));
+    triangles.push_back(Triangle(bot3, bot4, up3, cl_3, DIFFUSE));
+    triangles.push_back(Triangle(bot4, bot5, up4, cl_4, DIFFUSE));
+    triangles.push_back(Triangle(bot5, bot6, up5, cl_5, DIFFUSE));
+    triangles.push_back(Triangle(bot6, bot1, up6, cl_6, DIFFUSE));
 
     // second set of wall triangles ("top right half")
-    triangles.push_back(Triangle(bot1, up1, up6, wall2, DIFFUSE));
-    triangles.push_back(Triangle(bot2, up2, up1, wall2, DIFFUSE));
-    triangles.push_back(Triangle(bot3, up3, up2, wall2, DIFFUSE));
-    triangles.push_back(Triangle(bot4, up4, up3, wall2, DIFFUSE));
-    triangles.push_back(Triangle(bot5, up5, up4, wall2, DIFFUSE));
-    triangles.push_back(Triangle(bot6, up6, up5, wall2, DIFFUSE));
+    triangles.push_back(Triangle(bot1, up1, up6, cl_6, DIFFUSE));
+    triangles.push_back(Triangle(bot2, up2, up1, cl_1, DIFFUSE));
+    triangles.push_back(Triangle(bot3, up3, up2, cl_2, DIFFUSE));
+    triangles.push_back(Triangle(bot4, up4, up3, cl_3, DIFFUSE));
+    triangles.push_back(Triangle(bot5, up5, up4, cl_4, DIFFUSE));
+    triangles.push_back(Triangle(bot6, up6, up5, cl_5, DIFFUSE));
 }
 
 
