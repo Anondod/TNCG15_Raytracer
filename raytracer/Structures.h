@@ -76,6 +76,10 @@ public:
     {
         return Vector3(factor * x, factor * y, factor * z);
 	}
+     Vector3 mult(Vector3 inV)
+    {
+        return Vector3(inV.x * x, inV.y * y, inV.z * z);
+	}
     std::string to_string()
     {
         std::string out_string = "<";
@@ -104,7 +108,7 @@ const int DIFFUSE = 0;
 const int MIRROR = 1;
 const int GLASS = 2;
 
-struct Triangle{
+class Triangle{
 public:
     Vector3 v0;
     Vector3 v1;
@@ -154,7 +158,69 @@ public:
     }
 };
 
-std::vector<Triangle> triangles;
+class LightSource {
+public:
+    Vector3 position;
+    Vector3 color;
+    LightSource(Vector3 in_position, Vector3 in_color)
+    {
+        position = in_position;
+        color = in_color;
+    }
+};
+
+
+class Scene{
+public:
+    std::vector<LightSource> lights;
+    std::vector<Triangle> triangles;
+    //std::vector<Sphere> spheres;
+
+    void add_triangle(Triangle inT)
+    {
+        triangles.push_back(inT);
+	}
+
+    
+    void add_light_source(LightSource inL)
+    {
+        lights.push_back(inL);
+	}
+
+    void rayIntersectAll(Ray& r, int& triangle_index, float& t)
+    {
+        // calculate closest triangle hit
+        int min_triangle_index = -1;
+        float min_t = INFINITY;
+        for (int i = 0; i < triangles.size(); i++) {
+            float temp_t = triangles[i].rayIntersection(r);
+            if (temp_t > 0.0001 && temp_t < min_t) {
+                min_t = temp_t;
+                min_triangle_index = i;
+            }
+        }
+
+        t = min_t;
+        triangle_index = min_triangle_index;
+    }
+
+    Vector3 getLightInfluence(Vector3 hitpoint, Vector3 normal) {
+        Vector3 accumulated_light = Vector3();
+        for (size_t light_index = 0; light_index < lights.size(); ++light_index)
+        {
+
+            Vector3 to_lightsource = lights.at(light_index).position - hitpoint;
+            float light_distance = to_lightsource.abs();
+            to_lightsource = to_lightsource.normalize();
+
+            float intensity = to_lightsource.dot(normal);
+            intensity /= light_distance * light_distance;
+            accumulated_light += lights.at(light_index).color.mult(intensity);
+        }
+        return accumulated_light;
+    }
+
+};
 
 const int CAMSIZE = 800;
 
@@ -164,7 +230,7 @@ public:
     double offset = 1.0;
 
     Vector3 view_direction;
-
+    Scene* current_scene;
 
     Vector3 screen[CAMSIZE][CAMSIZE];
 
@@ -180,6 +246,11 @@ public:
         }
     }
 
+    void setScene(Scene* s)
+    {
+        current_scene = s;
+    }
+
     // xy image plane, not 3d space coordinates
     Vector3 calculate_pixel_color(int x, int y) 
     {
@@ -191,24 +262,60 @@ public:
         Ray r;
         r.end_point = pixel_position;
         r.start_point = camera_position;
+        float out_t;
+        int out_index;
+
+        current_scene->rayIntersectAll(r, out_index, out_t);
+
+        //if ray hit a surface
+        if (out_t > 0.0001 && out_index != -1) {
+            Vector3 rayhit = r.start_point + (r.end_point - r.start_point).mult(out_t);
+            Vector3 t_normal = current_scene->triangles[out_index].normal;
+
+            int type = current_scene->triangles[out_index].material;
+            if (type == DIFFUSE)
+            {
+                Vector3 accumulated_light = current_scene->getLightInfluence(rayhit, t_normal);
+                return current_scene->triangles[out_index].color.mult(accumulated_light);
+			}
+            else if (type == MIRROR)
+            {
+                Vector3 in_dir = (r.end_point - r.start_point);
+                // r=d-2(d*n)*n
+                Vector3 reflect_dir = in_dir - t_normal.mult(2.0 * in_dir.dot(t_normal));
+
+                Ray mirror_ray;
+                mirror_ray.end_point = rayhit + reflect_dir;
+                mirror_ray.start_point = rayhit;
+                float mirror_ray_t;
+                int mirror_ray_index;
+
+                current_scene->rayIntersectAll(mirror_ray, mirror_ray_index, mirror_ray_t);
+
+                // NEED EXCEPTION FOR RAYS THAT IMMEDIATELY HIT ANOTHER SURFACE AT T=0 (maybe)
+                if (mirror_ray_t > 0.0001 && mirror_ray_index != -1) {
+                    Vector3 mirror_rayhit = mirror_ray.start_point + (mirror_ray.end_point - mirror_ray.start_point).mult(mirror_ray_t);
+                    Vector3 accumulated_light = current_scene->getLightInfluence(mirror_rayhit, current_scene->triangles[mirror_ray_index].normal);
+
+                    return current_scene->triangles[mirror_ray_index].color.mult(accumulated_light);
+                }
+                else
+                    return Vector3();
+                
+			}
+            else if(type == GLASS)
+            {
+                std::cout << "refraction is not yet implemented, FOOL";
+			}
+            else
+            {
+                std::cout << "ERROR: No known material";
+			}
         
 
-        // calculate closest triangle hit
-        int triangle_index = -1;
-        float min_t = 1000000000;
-        for (int i = 0; i < triangles.size(); i++) {
-            float temp_t = triangles[i].rayIntersection(r);
-            if (temp_t > 0.0001 && temp_t < min_t) {
-                min_t = temp_t;
-                triangle_index = i;
-            }
         }
-
-        //TEMP return triangle color if hit or black if miss
-        if (min_t > 0.0001 && triangle_index != -1)
-            return triangles[triangle_index].color; //.mult(triangles[triangle_index].normal.dot(r.end_point - r.start_point));
         else
-            return Vector3();
+            return Vector3(); //Vector3(100,0,0) to test if rays go "out of bounds"
     }
 
     // xy image plane, not 3d space coordinates
@@ -217,40 +324,3 @@ public:
         screen[x][y] = color;
     }
 };
-
-class Scene {
-
-};
-
-
-/*
-ColorDbl getLightFromDirection(Vertex start, Vertex dir) {
-    Ray r = raytrace(start, dir);
-    hitpos;
-    hitriangle
-    hitriangle.normal
-
-    Direction reflectiondir = reflect(r.end, r.hittriangle.normal);
-    Direction refractiondir = refract(r.end, r.hittriangle);
-
-    color += hitriangle.color * getDiffuseLight(r, lightlist); //shadow rays
-    // point light position + n | dir2light
-
-
-    color += hitriangle.specular_color * getLightFromDirection(r, reflectiondir); //reflection
-    color += hitriangle.color * getLightFromDirection(r, refractiondir); //refraction
-
-    return color;
-}
-
-ColorDbl getDiffuseLight(Vertex hit_position, Triangle inT) {
-
-    for (light_source in light_source_list) {
-        raytrace(hit_position, light_source.position);
-
-        hitpoint->ljus->triangel  if (t < 1)
-    }
-}
-
-ColorDbl color = getLightFromDirection(start, dir, importance, count_bounces);
-*/

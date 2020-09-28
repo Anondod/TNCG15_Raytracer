@@ -7,6 +7,13 @@
 #include <iostream>
 #include <mutex>
 
+
+// TODO:
+// - make raytracing recursive
+// - add randomization in the camera ray directions
+// - add transparent objects with refracting + reflecting rays
+// - something about rays hitting another surface with t=0 (on edges)
+
 const int n_threads = 8;
 const int drawinterval = 25; // percentage
 char* imageFileName = (char*)"result.bmp";
@@ -21,6 +28,7 @@ int drawnpixels = 0;
 std::mutex mtx;
 
 Camera camera;
+Scene scene;
 
 
 void renderScene();
@@ -31,21 +39,9 @@ void addRoom();
 int main()
 {
     addRoom();
+    scene.add_light_source(LightSource(Vector3(5,3.5,0), Vector3(1, 1, 1)));
+    camera.setScene(&scene);
     renderScene();
-
-    /*
-    Vector3 test_vector_add = test_vector1 + test_vector2;
-    Vector3 test_vector_cross = test_vector1.cross(test_vector2);
-    test_vector2 += test_vector1;
-    std::cout << test_vector1<<"\n";
-    std::cout << test_vector2<<"\n";
-    
-    
-    std::cout << "Addition" << test_vector_add<< "\n";
-    std::cout << "+=" <<test_vector2.to_string()<< "\n";
-    std::cout << "cross" <<test_vector_cross.to_string()<< "\n"; // 0 -1 0
-    std::cout << "dot product (1.0, 2.0, 3.0) dot  (0.0, 1.0, 2.0) = " << Vector3(1.0, 2.0, 3.0).dot(Vector3(0.0, 1.0, 2.0)) << "\n";
-    */
 
 }
 
@@ -96,23 +92,21 @@ void drawImageToBMP() {
     double imax = 0;
     for (int y = 0; y < CAMSIZE; y++) {
         for (int x = 0; x < CAMSIZE; x++) {
-            if (imax < camera.screen[x][y].x)
-                imax = camera.screen[x][y].x;
-            if (imax < camera.screen[x][y].y)
-                imax = camera.screen[x][y].y;
-            if (imax < camera.screen[x][y].z)
-                imax = camera.screen[x][y].z;
+            if (imax < sqrt(camera.screen[x][y].x))
+                imax = sqrt(camera.screen[x][y].x);
+            if (imax < sqrt(camera.screen[x][y].y))
+                imax = sqrt(camera.screen[x][y].y);
+            if (imax < sqrt(camera.screen[x][y].z))
+                imax = sqrt(camera.screen[x][y].z);
         }
     }
-
-    // ALSO DO SQRT OR LOG OF SCREEN VALUES SOMEWHERE HERE
 
     for (int y = 0; y < CAMSIZE; y++) {
         for (int x = 0; x < CAMSIZE; x++) {
             //image is defined as image[y][x][c], where c=3: alpha, c=2,1,0: rgb
-            image[y][x][2] = (unsigned char)(camera.screen[x][y].x * 255.99 / imax);            ///red
-            image[y][x][1] = (unsigned char)(camera.screen[x][y].y * 255.99 / imax);            ///green
-            image[y][x][0] = (unsigned char)(camera.screen[x][y].z * 255.99 / imax);            ///blue
+            image[y][x][2] = (unsigned char)(sqrt(camera.screen[x][y].x) * 255.99 / imax);            ///red
+            image[y][x][1] = (unsigned char)(sqrt(camera.screen[x][y].y) * 255.99 / imax);            ///green
+            image[y][x][0] = (unsigned char)(sqrt(camera.screen[x][y].z) * 255.99 / imax);            ///blue
         }
     }
 
@@ -148,7 +142,7 @@ void addRoom()
 
     //colors
     Vector3 cl_white = Vector3(1.0, 1.0, 1.0);
-    Vector3 cl_1 = Vector3(0.1, 0.4, 0.9);
+    Vector3 cl_1 = Vector3(0.5, 0.2, 0.6);
     Vector3 cl_2 = Vector3(0.8, 0.3, 0.1);
     Vector3 cl_3 = Vector3(0.1, 0.4, 0.2);
     Vector3 cl_4 = Vector3(0.1, 0.7, 0.6);
@@ -156,36 +150,36 @@ void addRoom()
     Vector3 cl_6 = Vector3(0.1, 0.0, 0.7);
 
     // lower plane triangles
-    triangles.push_back(Triangle(bot1, bot0, bot2, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(bot2, bot0, bot3, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(bot3, bot0, bot4, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(bot4, bot0, bot5, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(bot5, bot0, bot6, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(bot6, bot0, bot1, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(bot1, bot0, bot2, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(bot2, bot0, bot3, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(bot3, bot0, bot4, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(bot4, bot0, bot5, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(bot5, bot0, bot6, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(bot6, bot0, bot1, cl_white, DIFFUSE));
 
     // upper plane triangles (opposite order for reversed normals
-    triangles.push_back(Triangle(up2, up0, up1, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(up3, up0, up2, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(up4, up0, up3, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(up5, up0, up4, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(up6, up0, up5, cl_white, DIFFUSE));
-    triangles.push_back(Triangle(up1, up0, up6, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(up2, up0, up1, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(up3, up0, up2, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(up4, up0, up3, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(up5, up0, up4, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(up6, up0, up5, cl_white, DIFFUSE));
+    scene.add_triangle(Triangle(up1, up0, up6, cl_white, DIFFUSE));
 
     // first set of wall triangles ("bottom left half")
-    triangles.push_back(Triangle(bot1, bot2, up1, cl_1, DIFFUSE));
-    triangles.push_back(Triangle(bot2, bot3, up2, cl_2, DIFFUSE));
-    triangles.push_back(Triangle(bot3, bot4, up3, cl_3, DIFFUSE));
-    triangles.push_back(Triangle(bot4, bot5, up4, cl_4, DIFFUSE));
-    triangles.push_back(Triangle(bot5, bot6, up5, cl_5, DIFFUSE));
-    triangles.push_back(Triangle(bot6, bot1, up6, cl_6, DIFFUSE));
+    scene.add_triangle(Triangle(bot1, bot2, up1, cl_1, DIFFUSE));
+    scene.add_triangle(Triangle(bot2, bot3, up2, cl_2, DIFFUSE));
+    scene.add_triangle(Triangle(bot3, bot4, up3, cl_3, MIRROR));
+    scene.add_triangle(Triangle(bot4, bot5, up4, cl_4, DIFFUSE));
+    scene.add_triangle(Triangle(bot5, bot6, up5, cl_5, DIFFUSE));
+    scene.add_triangle(Triangle(bot6, bot1, up6, cl_6, DIFFUSE));
 
     // second set of wall triangles ("top right half")
-    triangles.push_back(Triangle(bot1, up1, up6, cl_6, DIFFUSE));
-    triangles.push_back(Triangle(bot2, up2, up1, cl_1, DIFFUSE));
-    triangles.push_back(Triangle(bot3, up3, up2, cl_2, DIFFUSE));
-    triangles.push_back(Triangle(bot4, up4, up3, cl_3, DIFFUSE));
-    triangles.push_back(Triangle(bot5, up5, up4, cl_4, DIFFUSE));
-    triangles.push_back(Triangle(bot6, up6, up5, cl_5, DIFFUSE));
+    scene.add_triangle(Triangle(bot1, up1, up6, cl_6, DIFFUSE));
+    scene.add_triangle(Triangle(bot2, up2, up1, cl_1, DIFFUSE));
+    scene.add_triangle(Triangle(bot3, up3, up2, cl_2, DIFFUSE));
+    scene.add_triangle(Triangle(bot4, up4, up3, cl_3, DIFFUSE));
+    scene.add_triangle(Triangle(bot5, up5, up4, cl_4, DIFFUSE));
+    scene.add_triangle(Triangle(bot6, up6, up5, cl_5, DIFFUSE));
 }
 
 
