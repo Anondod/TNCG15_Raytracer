@@ -35,11 +35,13 @@ void renderScene();
 void renderSegment(int starty, int endy);
 void drawImageToBMP();
 void addRoom();
+void addObjects();
 
 int main()
 {
     addRoom();
-    scene.add_light_source(LightSource(Vector3(5,3.5,0), Vector3(1, 1, 1)));
+    addObjects();
+    scene.add_light_source(LightSource(Vector3(-1.0,0.0,0), Vector3(1, 1, 1)));
     camera.setScene(&scene);
     renderScene();
 
@@ -149,6 +151,7 @@ void addRoom()
     Vector3 cl_5 = Vector3(0.9, 0.9, 0.2);
     Vector3 cl_6 = Vector3(0.1, 0.0, 0.7);
 
+   
     // lower plane triangles
     scene.add_triangle(Triangle(bot1, bot0, bot2, cl_white, DIFFUSE));
     scene.add_triangle(Triangle(bot2, bot0, bot3, cl_white, DIFFUSE));
@@ -168,7 +171,7 @@ void addRoom()
     // first set of wall triangles ("bottom left half")
     scene.add_triangle(Triangle(bot1, bot2, up1, cl_1, DIFFUSE));
     scene.add_triangle(Triangle(bot2, bot3, up2, cl_2, DIFFUSE));
-    scene.add_triangle(Triangle(bot3, bot4, up3, cl_3, MIRROR));
+    scene.add_triangle(Triangle(bot3, bot4, up3, cl_3, DIFFUSE));
     scene.add_triangle(Triangle(bot4, bot5, up4, cl_4, DIFFUSE));
     scene.add_triangle(Triangle(bot5, bot6, up5, cl_5, DIFFUSE));
     scene.add_triangle(Triangle(bot6, bot1, up6, cl_6, DIFFUSE));
@@ -180,6 +183,40 @@ void addRoom()
     scene.add_triangle(Triangle(bot4, up4, up3, cl_3, DIFFUSE));
     scene.add_triangle(Triangle(bot5, up5, up4, cl_4, DIFFUSE));
     scene.add_triangle(Triangle(bot6, up6, up5, cl_5, DIFFUSE));
+}
+
+void addObjects() {
+    // tetrahedron
+    if(false)
+    {
+        Vector3 mid_point = Vector3(1.0, 0.0, 0.0);
+        Vector3 tet1 = Vector3(0.0, 1.0, 1.0) + mid_point;
+        Vector3 tet2 = Vector3(1.0, 0.0, 1.0) + mid_point;
+        Vector3 tet3 = Vector3(1.0, 1.0, 0.0) + mid_point;
+        Vector3 tet4 = Vector3(0.0, 0.0, 0.0) + mid_point;
+
+        // tetrahedron
+        scene.add_triangle(Triangle(tet1, tet4, tet2, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet2, tet4, tet3, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet1, tet2, tet3, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet1, tet3, tet4, Vector3(), GLASS));
+    }
+    
+    //TETRAHEDRON 2
+    if(true)
+    {
+        Vector3 mid_point = Vector3(4.0, 2.0, 1.0);
+        Vector3 tet1 = Vector3(-1.0, 0.0, 0.0) + mid_point; // cam-front
+        Vector3 tet2 = Vector3(0.0, -2.0, -2.0) + mid_point; // cam-left
+        Vector3 tet3 = Vector3(0.0, -2.0, 2.0) + mid_point; // cam-right
+        Vector3 tet4 = Vector3(0.0, 2.0, 0.0) + mid_point; // cam top
+
+        // tetrahedron
+        scene.add_triangle(Triangle(tet2, tet3, tet1, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet3, tet4, tet1, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet4, tet2, tet1, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet3, tet2, tet4, Vector3(), GLASS));
+    }
 }
 
 

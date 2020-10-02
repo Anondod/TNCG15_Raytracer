@@ -226,7 +226,7 @@ const int CAMSIZE = 800;
 
 class Camera {
 public:
-    Vector3 camera_position;
+    Vector3 camera_position = Vector3(-1,0,0); //Vector3(-2,0,0)
     double offset = 1.0;
 
     Vector3 view_direction;
@@ -262,57 +262,105 @@ public:
         Ray r;
         r.end_point = pixel_position;
         r.start_point = camera_position;
+        
+        Vector3 lightresult = recursive(r, 0);
+        return lightresult;
+    }
+
+    Vector3 recursive(Ray inRay, int time_to_die) {
+        if (time_to_die > 10) {
+            return Vector3();
+        }
+
         float out_t;
         int out_index;
-
-        current_scene->rayIntersectAll(r, out_index, out_t);
+        current_scene->rayIntersectAll(inRay, out_index, out_t);
 
         //if ray hit a surface
         if (out_t > 0.0001 && out_index != -1) {
-            Vector3 rayhit = r.start_point + (r.end_point - r.start_point).mult(out_t);
+            Vector3 rayhit = inRay.start_point + (inRay.end_point - inRay.start_point).mult(out_t);
             Vector3 t_normal = current_scene->triangles[out_index].normal;
+            Vector3 in_dir = (inRay.end_point - inRay.start_point).normalize();
 
             int type = current_scene->triangles[out_index].material;
             if (type == DIFFUSE)
             {
                 Vector3 accumulated_light = current_scene->getLightInfluence(rayhit, t_normal);
                 return current_scene->triangles[out_index].color.mult(accumulated_light);
-			}
+            }
             else if (type == MIRROR)
             {
-                Vector3 in_dir = (r.end_point - r.start_point);
                 // r=d-2(d*n)*n
                 Vector3 reflect_dir = in_dir - t_normal.mult(2.0 * in_dir.dot(t_normal));
 
                 Ray mirror_ray;
                 mirror_ray.end_point = rayhit + reflect_dir;
                 mirror_ray.start_point = rayhit;
-                float mirror_ray_t;
-                int mirror_ray_index;
 
-                current_scene->rayIntersectAll(mirror_ray, mirror_ray_index, mirror_ray_t);
-
-                // NEED EXCEPTION FOR RAYS THAT IMMEDIATELY HIT ANOTHER SURFACE AT T=0 (maybe)
-                if (mirror_ray_t > 0.0001 && mirror_ray_index != -1) {
-                    Vector3 mirror_rayhit = mirror_ray.start_point + (mirror_ray.end_point - mirror_ray.start_point).mult(mirror_ray_t);
-                    Vector3 accumulated_light = current_scene->getLightInfluence(mirror_rayhit, current_scene->triangles[mirror_ray_index].normal);
-
-                    return current_scene->triangles[mirror_ray_index].color.mult(accumulated_light);
-                }
-                else
-                    return Vector3();
-                
-			}
-            else if(type == GLASS)
+                Vector3 lightresult = recursive(mirror_ray, time_to_die + 1);
+                return lightresult;
+            }
+            else if (type == GLASS)
             {
-                std::cout << "refraction is not yet implemented, FOOL";
-			}
+                float n1, n2;
+                // from glass into air
+                if (in_dir.dot(t_normal) > 0.0) {
+                    n1 = 1.5;
+                    n2 = 1.0;
+                    // invert normal since the ray hits the backside of the triangle;
+                    t_normal = t_normal.mult(-1.0);
+                }
+                // from air into glass
+                else {
+                    n1 = 1.0;
+                    n2 = 1.5;
+				}
+
+                float am = asinf(n2 / n1);
+                float theta = acosf(t_normal.dot(in_dir.normalize().mult(-1.0)));
+
+
+                // r=d-2(d*n)*n
+                Vector3 reflect_dir = in_dir - t_normal.mult(2.0 * in_dir.dot(t_normal));
+
+                Ray mirror_ray;
+                mirror_ray.end_point = rayhit + reflect_dir;
+                mirror_ray.start_point = rayhit;
+
+                Vector3 out_light = recursive(mirror_ray, time_to_die + 1);
+
+                // do refraction if:
+                // - if ray hits surface with higher refraction coefficient
+                // - incoming angle is smaller than brewster angle
+                if (n2 > n1 || (theta <= am)) {
+                    //if((theta <= am))
+                        //std::cout << "theta: " << theta << " , am: " << am << "\n";
+                    float R0 = pow((n1 - n2) / (n1 + n2), 2);
+
+                    float Rc = R0 + (1 - R0) * pow((1 - cos(theta)), 5);
+                    float T = 1.0 - Rc;
+
+                    float ndiv = n1 / n2;
+                    float NI_dot = in_dir.dot(t_normal);
+
+                    Vector3 refract_dir = in_dir.mult(ndiv) + t_normal.mult(-1.0 * ndiv * NI_dot - sqrt(1.0 - ndiv * ndiv * (1.0 - NI_dot * NI_dot)));
+                
+                    Ray refract_ray;
+                    refract_ray.end_point = rayhit + refract_dir;
+                    refract_ray.start_point = rayhit;
+
+                    Vector3 lightresult_refract = recursive(refract_ray, time_to_die + 1);
+                
+                    out_light = out_light.mult(Rc) + lightresult_refract.mult(T);
+                }
+
+                return out_light; 
+            }
             else
             {
                 std::cout << "ERROR: No known material";
-			}
-        
-
+                return Vector3(1000000, 0, 0);
+            }
         }
         else
             return Vector3(); //Vector3(100,0,0) to test if rays go "out of bounds"
