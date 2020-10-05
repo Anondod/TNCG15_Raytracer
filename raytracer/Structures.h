@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 
+#define PI 3.14159265358979323846
 
 class Vector3 {
 public:
@@ -134,9 +135,6 @@ public:
         Vector3 side2 = v2 - v0;
 
         normal = side1.cross(side2).normalize();
-        std::cout << side1 << " cross ";
-        std::cout << side2 << "  : ";
-        std::cout << normal << "\n";
 	}
 
     float rayIntersection(Ray &r)
@@ -158,54 +156,230 @@ public:
     }
 };
 
-class LightSource {
+class Sphere {
 public:
     Vector3 position;
+    float radius;
+
     Vector3 color;
-    LightSource(Vector3 in_position, Vector3 in_color)
-    {
+    int material;
+
+    Sphere(Vector3 in_position, float in_radius, Vector3 in_color, int in_material) {
         position = in_position;
+        radius = in_radius;
         color = in_color;
+        material = in_material;
     }
+
+    float rayIntersection(Ray& r)
+    {
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+    
+        Vector3 L = position - r.start_point;
+        Vector3 rayVector = r.end_point - r.start_point;
+        float rayAbs = rayVector.abs();
+        Vector3 D = rayVector.mult(1.0 / rayAbs);
+
+        float t_ca = L.dot(D);
+        if(t_ca < 0) return -1; //dont do this cause ray could start inside sphere
+
+        float d = sqrt(L.dot(L) - t_ca*t_ca);
+        if (d > radius) return -1;
+
+        float t_hc = sqrt(radius * radius - d * d);
+
+        // first contact
+        //std::cout << "t_ca:" << t_ca << " " << "t_hc:" << t_hc << "   ";
+        float t0 = t_ca - t_hc;
+        if (t0 > 0) {
+            //std::cout << t0* rayAbs << " FIRST \n";
+            return t0 / rayAbs; // needs * rayabs because the return float t goes from ray_start = 0, to ray_end = 1, not normalised
+        }
+        //second contact
+        float t1 = t_ca + t_hc;
+        if (t1 > 0) {
+            //std::cout << t1 * rayAbs << " SECOND " << r.start_point << "\n";
+            return t1 / rayAbs;
+        }
+
+        //no hit
+        return -1;
+    }
+
+    Vector3 getNormalAt(Vector3 inV) {
+        return (inV - position).normalize();
+    }
+
+};
+// Kill only Lambertian / Oren Nayar rays. But Refractions have to be killed too. Kill refractions/reflections INSIDE transparent object after a set amount of bounces. 3 or 4 is okay
+// we want 2 -10 bounces, threshold depends on how dark the object is
+bool russianRoulette(float threshold) {
+    float P = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    return P < threshold;
+
+}
+
+
+class LightSource {
+public:
+    Vector3 v0;
+    Vector3 v1;
+    Vector3 v2;
+    Vector3 normal;
+    Vector3 color;
+    float area;
+    Vector3 side1;
+    Vector3 side2;
+
+    LightSource(const Vector3& in0, const Vector3& in1, const Vector3& in2,
+        Vector3 in_color, float watts)
+    {
+        v0 = in0;
+        v1 = in1;
+        v2 = in2;
+        side1 = v1 - v0;
+        side2 = v2 - v0;
+
+        area = side1.cross(side2).abs();
+
+        normal = side1.cross(side2).normalize();
+
+        color = in_color.mult(watts / (2*PI));
+    }
+
+    float rayIntersection(Ray& r)
+    {
+        Vector3 T = r.start_point - v0;
+        Vector3 E1 = v1 - v0;
+        Vector3 E2 = v2 - v0;
+        Vector3 D = r.end_point - r.start_point;
+        Vector3 P = D.cross(E2);
+        Vector3 Q = T.cross(E1);
+
+        Vector3 tuv = Vector3(Q.dot(E2), P.dot(T), Q.dot(D)).mult(1.0 / P.dot(E1));
+
+        // if ray intersected triangle return t, else return -1 for miss
+        if (tuv.y >= 0 && tuv.z >= 0 && tuv.y <= 1 && tuv.z <= 1)
+            return tuv.x;
+        else
+            return -1.0;
+    }
+
+    Vector3 randPoint() {
+        float U = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        float V = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        return v0 + side1.mult(U) + side2.mult(V);
+    }
+
 };
 
+
+const int TRIANGLE = 0;
+const int SPHERE = 1;
+const int LIGHT = 2;
 
 class Scene{
 public:
     std::vector<LightSource> lights;
     std::vector<Triangle> triangles;
-    //std::vector<Sphere> spheres;
+    std::vector<Sphere> spheres;
 
     void add_triangle(Triangle inT)
     {
         triangles.push_back(inT);
 	}
-
+    void add_sphere(Sphere inS)
+    {
+        spheres.push_back(inS);
+    }
     
     void add_light_source(LightSource inL)
     {
         lights.push_back(inL);
 	}
 
-    void rayIntersectAll(Ray& r, int& triangle_index, float& t)
+    void rayIntersectAll(Ray& r, int& index, float& t, int& hit_type)
     {
         // calculate closest triangle hit
-        int min_triangle_index = -1;
+        int min_index = -1;
         float min_t = INFINITY;
         for (int i = 0; i < triangles.size(); i++) {
             float temp_t = triangles[i].rayIntersection(r);
             if (temp_t > 0.0001 && temp_t < min_t) {
                 min_t = temp_t;
-                min_triangle_index = i;
+                min_index = i;
+                hit_type = TRIANGLE;
+            }
+        }
+        for (int i = 0; i < spheres.size(); i++) {
+            float temp_t = spheres[i].rayIntersection(r);
+            if (temp_t > 0.0001 && temp_t < min_t) {
+                min_t = temp_t;
+                min_index = i;
+                hit_type = SPHERE;
+            }
+        }
+        for (int i = 0; i < lights.size(); i++) {
+            float temp_t = lights[i].rayIntersection(r);
+            if (temp_t > 0.0001 && temp_t < min_t) {
+                min_t = temp_t;
+                min_index = i;
+                hit_type = LIGHT;
             }
         }
 
         t = min_t;
-        triangle_index = min_triangle_index;
+        index = min_index;
     }
 
-    Vector3 getLightInfluence(Vector3 hitpoint, Vector3 normal) {
+    Vector3 directLight(Vector3 hitpoint, Vector3 hitnormal) {
         Vector3 accumulated_light = Vector3();
+        int M = 5;
+        for (size_t light_index = 0; light_index < lights.size(); light_index++)
+        {
+            float light_intensity = 0.0f;
+            for (size_t k = 0; k < M; k++)
+            {
+                Vector3 light_point = lights[light_index].randPoint();
+                Vector3 Sk = light_point - hitpoint;
+
+                // surface is turned away from light source ray
+                if (hitnormal.dot(Sk) < 0) continue;
+
+                // shadow ray comes from the back of light surface
+                if (lights[light_index].normal.dot(Sk) > 0) continue;
+
+                Ray shadow_ray;
+                shadow_ray.start_point = hitpoint;
+                shadow_ray.end_point = light_point;
+
+                float out_t;
+                int out_index;
+                int hit_type;
+                rayIntersectAll(shadow_ray, out_index, out_t, hit_type);
+
+                //if (hit_type == SPHERE) std::cout << "SPHERE";
+
+                // this is equivalent to Vk
+                if (out_index == light_index && hit_type == LIGHT) {
+                    float Dk = Sk.abs();
+
+                    float cosak = -Sk.dot(lights[light_index].normal) / Dk;
+                    float cosbk = Sk.dot(hitnormal) / Dk;
+
+                    light_intensity += cosak * cosbk / (Dk * Dk);
+                }
+                
+            }
+            accumulated_light += lights[light_index].color.mult(lights[light_index].area * light_intensity);
+        }
+
+        return accumulated_light.mult(1.0 / M);
+    }
+
+    /*Vector3 directLight(Vector3 hitpoint, Vector3 normal) {
+        Vector3 accumulated_light = Vector3();
+
         for (size_t light_index = 0; light_index < lights.size(); ++light_index)
         {
 
@@ -218,7 +392,7 @@ public:
             accumulated_light += lights.at(light_index).color.mult(intensity);
         }
         return accumulated_light;
-    }
+    }*/
 
 };
 
@@ -268,25 +442,50 @@ public:
     }
 
     Vector3 recursive(Ray inRay, int time_to_die) {
+        float P = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        float myValue = 0.8;
+        if(P > myValue)
+
         if (time_to_die > 10) {
             return Vector3();
         }
 
         float out_t;
         int out_index;
-        current_scene->rayIntersectAll(inRay, out_index, out_t);
-
+        int hit_type;
+        current_scene->rayIntersectAll(inRay, out_index, out_t, hit_type);
+        if (hit_type == LIGHT)
+        {
+            return current_scene->lights[out_index].color;
+        }
         //if ray hit a surface
-        if (out_t > 0.0001 && out_index != -1) {
+        else if (out_t > 0.0001 && out_index != -1) {
             Vector3 rayhit = inRay.start_point + (inRay.end_point - inRay.start_point).mult(out_t);
-            Vector3 t_normal = current_scene->triangles[out_index].normal;
             Vector3 in_dir = (inRay.end_point - inRay.start_point).normalize();
-
-            int type = current_scene->triangles[out_index].material;
+            //if sphere get normal somehow else
+            Vector3 t_normal;
+            Vector3 color;
+            int type;
+            if(hit_type == SPHERE)
+            {
+                t_normal = current_scene->spheres[out_index].getNormalAt(rayhit);
+                color = current_scene->spheres[out_index].color;
+                type = current_scene->spheres[out_index].material;
+            }
+            else { // hit_type == TRIANGLE
+                t_normal = current_scene->triangles[out_index].normal;
+                color = current_scene->triangles[out_index].color;
+                type = current_scene->triangles[out_index].material;
+            }
+            
             if (type == DIFFUSE)
             {
-                Vector3 accumulated_light = current_scene->getLightInfluence(rayhit, t_normal);
-                return current_scene->triangles[out_index].color.mult(accumulated_light);
+                //if (P)
+                //    recursive(normalish riktning);
+
+                // DO DIRECT LIGHT MONTE CARLO INTEGRATION
+                Vector3 accumulated_light = current_scene->directLight(rayhit, t_normal);
+                return color.mult(accumulated_light);
             }
             else if (type == MIRROR)
             {

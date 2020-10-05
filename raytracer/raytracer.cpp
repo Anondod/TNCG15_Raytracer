@@ -15,7 +15,7 @@
 // - something about rays hitting another surface with t=0 (on edges)
 
 const int n_threads = 8;
-const int drawinterval = 25; // percentage
+const int drawinterval = 10; // percentage
 char* imageFileName = (char*)"result.bmp";
 
 static unsigned char image[CAMSIZE][CAMSIZE][BYTES_PER_PIXEL];
@@ -36,12 +36,17 @@ void renderSegment(int starty, int endy);
 void drawImageToBMP();
 void addRoom();
 void addObjects();
+void addBox(Vector3 mid_point, float size, int material);
 
 int main()
 {
     addRoom();
     addObjects();
-    scene.add_light_source(LightSource(Vector3(-1.0,0.0,0), Vector3(1, 1, 1)));
+    Vector3 midPoint = Vector3(5.0, 4.9, 0.0);
+    Vector3 v0 = midPoint + Vector3(-0.5, 0.0, -0.5);
+    Vector3 v1 = midPoint + Vector3(0.5, 0.0, -0.5);
+    Vector3 v2 = midPoint + Vector3(-0.5, 0.0, 0.5);
+    scene.add_light_source(LightSource(v0, v1, v2, Vector3(0, 0, 1.0), 1000));
     camera.setScene(&scene);
     renderScene();
 
@@ -92,6 +97,38 @@ void renderSegment(int starty, int endy)
 
 void drawImageToBMP() {
     double imax = 0;
+
+    // double sqrt
+    for (int y = 0; y < CAMSIZE; y++) {
+        for (int x = 0; x < CAMSIZE; x++) {
+            if (imax < sqrt(sqrt(camera.screen[x][y].x)))
+                imax = sqrt(sqrt(camera.screen[x][y].x));
+            if (imax < sqrt(sqrt(camera.screen[x][y].y)))
+                imax = sqrt(sqrt(camera.screen[x][y].y));
+            if (imax < sqrt(sqrt(camera.screen[x][y].z)))
+                imax = sqrt(sqrt(camera.screen[x][y].z));
+        }
+    }
+
+    for (int y = 0; y < CAMSIZE; y++) {
+        for (int x = 0; x < CAMSIZE; x++) {
+            //image is defined as image[y][x][c], c=2,1,0: rgb
+            double red   = sqrt(sqrt(camera.screen[x][y].x));
+            double green = sqrt(sqrt(camera.screen[x][y].y));
+            double blue  = sqrt(sqrt(camera.screen[x][y].z)); 
+            // scope now: 0 - imax
+            red   = red   / imax * 255.99;
+            green = green / imax * 255.99;
+            blue  = blue  / imax * 255.99;
+
+            image[y][x][2] = (unsigned char)(red);      // red
+            image[y][x][1] = (unsigned char)(green);    // green
+            image[y][x][0] = (unsigned char)(blue);     // blue
+        }
+    }
+
+    // single sqrt
+    /*
     for (int y = 0; y < CAMSIZE; y++) {
         for (int x = 0; x < CAMSIZE; x++) {
             if (imax < sqrt(camera.screen[x][y].x))
@@ -106,11 +143,12 @@ void drawImageToBMP() {
     for (int y = 0; y < CAMSIZE; y++) {
         for (int x = 0; x < CAMSIZE; x++) {
             //image is defined as image[y][x][c], where c=3: alpha, c=2,1,0: rgb
-            image[y][x][2] = (unsigned char)(sqrt(camera.screen[x][y].x) * 255.99 / imax);            ///red
-            image[y][x][1] = (unsigned char)(sqrt(camera.screen[x][y].y) * 255.99 / imax);            ///green
-            image[y][x][0] = (unsigned char)(sqrt(camera.screen[x][y].z) * 255.99 / imax);            ///blue
+            image[y][x][2] = (unsigned char)(sqrt(camera.screen[x][y].x) * 255.99 / imax * 255.99);            ///red
+            image[y][x][1] = (unsigned char)(sqrt(camera.screen[x][y].y) * 255.99 / imax) * 255.99;            ///green
+            image[y][x][0] = (unsigned char)(sqrt(camera.screen[x][y].z) * 255.99 / imax) * 255.99;            ///blue
         }
-    }
+    } 
+    */
 
     generateBitmapImage((unsigned char*)image, CAMSIZE, CAMSIZE, imageFileName);
     drawnpercentage += drawinterval;
@@ -185,6 +223,8 @@ void addRoom()
     scene.add_triangle(Triangle(bot6, up6, up5, cl_5, DIFFUSE));
 }
 
+
+
 void addObjects() {
     // tetrahedron
     if(false)
@@ -203,7 +243,7 @@ void addObjects() {
     }
     
     //TETRAHEDRON 2
-    if(true)
+    if(false)
     {
         Vector3 mid_point = Vector3(4.0, 2.0, 1.0);
         Vector3 tet1 = Vector3(-1.0, 0.0, 0.0) + mid_point; // cam-front
@@ -212,11 +252,58 @@ void addObjects() {
         Vector3 tet4 = Vector3(0.0, 2.0, 0.0) + mid_point; // cam top
 
         // tetrahedron
-        scene.add_triangle(Triangle(tet2, tet3, tet1, Vector3(), GLASS));
-        scene.add_triangle(Triangle(tet3, tet4, tet1, Vector3(), GLASS));
-        scene.add_triangle(Triangle(tet4, tet2, tet1, Vector3(), GLASS));
-        scene.add_triangle(Triangle(tet3, tet2, tet4, Vector3(), GLASS));
+        scene.add_triangle(Triangle(tet2, tet3, tet1, Vector3(1,1,1), DIFFUSE));
+        scene.add_triangle(Triangle(tet3, tet4, tet1, Vector3(1,1,1), DIFFUSE));
+        scene.add_triangle(Triangle(tet4, tet2, tet1, Vector3(1,1,1), DIFFUSE));
+        scene.add_triangle(Triangle(tet3, tet2, tet4, Vector3(1,1,1), DIFFUSE));
     }
+
+    if (true) {
+        scene.add_sphere(Sphere(Vector3(4,0,2), 2, Vector3(1,1,1), GLASS));
+    }
+    if(true){
+    
+        Vector3 box1 = Vector3(6.0, 2.0, -1.0);
+        Vector3 box2 = Vector3(6.0, 0.0, -1.0);
+        Vector3 box3 = Vector3(6.0, -3.0, -1.0);
+        
+        addBox(box1, 1.0, DIFFUSE);
+        addBox(box2, 2.0, DIFFUSE);
+        addBox(box3, 3.0, DIFFUSE);
+	}
 }
 
 
+void addBox(Vector3 mid_point, float size = 1.0, int material = DIFFUSE)
+{
+    
+    mid_point -=  Vector3(0.5, 0.5, 0.5).mult(size);
+    Vector3 box1 = Vector3(0.0, 0.0, 1.0).mult(size) + mid_point; //ner vänster
+    Vector3 box2 = Vector3(1.0, 0.0, 1.0).mult(size) + mid_point; //ner höger
+    Vector3 box3 = Vector3(1.0, 1.0, 1.0).mult(size) + mid_point; //upp höger
+    Vector3 box4 = Vector3(0.0, 1.0, 1.0).mult(size) + mid_point; //upp vänster
+
+    Vector3 box5 = Vector3(0.0, 0.0, 0.0).mult(size) + mid_point; //ner vänster
+    Vector3 box6 = Vector3(1.0, 0.0, 0.0).mult(size) + mid_point; //ner höger
+    Vector3 box7 = Vector3(1.0, 1.0, 0.0).mult(size) + mid_point; //upp höger
+    Vector3 box8 = Vector3(0.0, 1.0, 0.0).mult(size) + mid_point; //upp vänster
+
+    scene.add_triangle(Triangle(box1, box2, box3, Vector3(1,1,1), material));
+    scene.add_triangle(Triangle(box1, box3, box4, Vector3(1,1,1), material));
+
+    scene.add_triangle(Triangle(box2, box6, box7, Vector3(1,1,1), material));
+    scene.add_triangle(Triangle(box2, box7, box3, Vector3(1,1,1), material));
+
+    scene.add_triangle(Triangle(box6, box5, box8, Vector3(1, 1, 1), material));
+    scene.add_triangle(Triangle(box6, box8, box7, Vector3(1, 1, 1), material));
+
+    scene.add_triangle(Triangle(box5, box1, box4, Vector3(1, 1, 1), material));
+    scene.add_triangle(Triangle(box5, box4, box8, Vector3(1, 1, 1), material));
+
+    scene.add_triangle(Triangle(box4, box3, box7, Vector3(1, 1, 1), material));
+    scene.add_triangle(Triangle(box4, box7, box8, Vector3(1, 1, 1), material));
+
+    scene.add_triangle(Triangle(box5, box6, box2, Vector3(1, 1, 1), material));
+    scene.add_triangle(Triangle(box5, box2, box1, Vector3(1, 1, 1), material));
+	
+}
