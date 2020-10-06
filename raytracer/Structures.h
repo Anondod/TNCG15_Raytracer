@@ -456,15 +456,21 @@ public:
         int out_index;
         int hit_type;
         current_scene->rayIntersectAll(inRay, out_index, out_t, hit_type);
+
+        Vector3 in_dir = (inRay.end_point - inRay.start_point).normalize();
+        Vector3 rayhit = inRay.start_point + (inRay.end_point - inRay.start_point).mult(out_t);
+
         if (hit_type == LIGHT)
         {
-            return current_scene->lights[out_index].color;
+            // if it hit the front
+            if(in_dir.dot(current_scene->lights[out_index].normal) < 0)
+                return current_scene->lights[out_index].color;
+            else
+                return Vector3();
         }
         //if ray hit a surface
         else if (out_t > 0.0001 && out_index != -1) {
-            Vector3 rayhit = inRay.start_point + (inRay.end_point - inRay.start_point).mult(out_t);
-            Vector3 in_dir = (inRay.end_point - inRay.start_point).normalize();
-            //if sphere get normal somehow else
+
             Vector3 t_normal;
             Vector3 color;
             int type;

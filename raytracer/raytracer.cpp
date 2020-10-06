@@ -62,7 +62,10 @@ void renderScene()
         int start = i * CAMSIZE / n_threads;
         int end = (i + 1) * CAMSIZE / n_threads;
         std::cout << "thread " << i << " assigned to height " << start << "-" << end << "\n";
-        threads[i] = std::thread(renderPixelsInOrder);
+
+        threads[i] = std::thread(renderSegment, start, end);
+        //threads[i] = std::thread(renderAlternatingPixels, n_threads, i);
+        //threads[i] = std::thread(renderPixelsInOrder);
     }
 
     std::cout << "Rendering started:\n";
