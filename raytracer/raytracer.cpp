@@ -15,7 +15,7 @@
 // - something about rays hitting another surface with t=0 (on edges)
 
 const int n_threads = 8;
-const int drawinterval = 10; // percentage
+const int drawinterval = 5; // percentage
 char* imageFileName = (char*)"result.bmp";
 
 static unsigned char image[CAMSIZE][CAMSIZE][BYTES_PER_PIXEL];
@@ -46,7 +46,7 @@ int main()
     Vector3 v0 = midPoint + Vector3(-0.5, 0.0, -0.5);
     Vector3 v1 = midPoint + Vector3(0.5, 0.0, -0.5);
     Vector3 v2 = midPoint + Vector3(-0.5, 0.0, 0.5);
-    scene.add_light_source(LightSource(v0, v1, v2, Vector3(0, 0, 1.0), 1000));
+    scene.add_light_source(LightSource(v0, v1, v2, Vector3(1.0, 1.0, 1.0), 1000));
     camera.setScene(&scene);
     renderScene();
 
