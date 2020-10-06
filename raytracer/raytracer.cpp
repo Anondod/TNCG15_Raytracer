@@ -26,6 +26,8 @@ int drawnpercentage = 0;
 int drawnpixels = 0;
 
 std::mutex mtx;
+std::mutex index_lock;
+int pixel_index = 0;
 
 Camera camera;
 Scene scene;
@@ -33,6 +35,8 @@ Scene scene;
 
 void renderScene();
 void renderSegment(int starty, int endy);
+void renderAlternatingPixels(int n_threads, int thread_index);
+void renderPixelsInOrder();
 void drawImageToBMP();
 void addRoom();
 void addObjects();
@@ -49,7 +53,6 @@ int main()
     scene.add_light_source(LightSource(v0, v1, v2, Vector3(1.0, 1.0, 1.0), 1000));
     camera.setScene(&scene);
     renderScene();
-
 }
 
 void renderScene()
@@ -59,7 +62,7 @@ void renderScene()
         int start = i * CAMSIZE / n_threads;
         int end = (i + 1) * CAMSIZE / n_threads;
         std::cout << "thread " << i << " assigned to height " << start << "-" << end << "\n";
-        threads[i] = std::thread(renderSegment, start, end);
+        threads[i] = std::thread(renderPixelsInOrder);
     }
 
     std::cout << "Rendering started:\n";
@@ -92,6 +95,58 @@ void renderSegment(int starty, int endy)
             }
             mtx.unlock();
         }
+    }
+}
+
+// render alternating pixels in order, every thread renders every n_threads pixel
+void renderAlternatingPixels(int n_threads, int thread_index)
+{
+    for (int i = thread_index; i < CAMSIZE*CAMSIZE; i+= n_threads) {
+        int x = i % CAMSIZE;
+        int y = floor(i / CAMSIZE);
+
+        //decide pixel color here (aka do raytracing)
+        Vector3 color = camera.calculate_pixel_color(x, y);
+
+        //draw pixel in camera.screen and ocasionally render to bmp
+        mtx.lock();
+        {
+            camera.render_pixel(x, y, color);
+
+            //render to bmp in interval
+            if (++drawnpixels % drawmod == 0) {
+                drawImageToBMP();
+            }
+        }
+        mtx.unlock();
+    }
+}
+
+// render first unrendered pixel every time the thread "gets active", SLIGHTLY less efficient MAYBE
+void renderPixelsInOrder()
+{
+    int i = 0;
+    while (i < CAMSIZE * CAMSIZE) {
+        index_lock.lock();
+        i = pixel_index++;
+        index_lock.unlock();
+        int x = i % CAMSIZE;
+        int y = floor(i / CAMSIZE);
+
+        //decide pixel color here (aka do raytracing)
+        Vector3 color = camera.calculate_pixel_color(x, y);
+
+        //draw pixel in camera.screen and ocasionally render to bmp
+        mtx.lock();
+        {
+            camera.render_pixel(x, y, color);
+
+            //render to bmp in interval
+            if (++drawnpixels % drawmod == 0) {
+                drawImageToBMP();
+            }
+        }
+        mtx.unlock();
     }
 }
 

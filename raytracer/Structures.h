@@ -489,7 +489,10 @@ public:
                     //recursive(normalish riktning);
 
                 Vector3 accumulated_light = Vector3();
-                if(russianRoulette(0.8)) // max(color.x,color.y,color.z)
+
+                float kill_prob = 0.8;
+
+                if(russianRoulette(kill_prob)) // max(color.x,color.y,color.z)
                 {
                     Vector3 u = in_dir.mult(-1);
                     Vector3 e1 = (u - t_normal.mult(u.dot(t_normal))).normalize();
@@ -503,7 +506,7 @@ public:
                     Ray r;
                     r.start_point = rayhit;
                     r.end_point = rayhit + ray_out_V;
-                    accumulated_light = recursive(r).mult(1.0 / 0.8);
+                    accumulated_light = recursive(r).mult(1.0 / kill_prob);
 				}
 
                 //build local system https://en.wikibooks.org/wiki/Linear_Algebra/Orthogonal_Projection_Onto_a_Line
