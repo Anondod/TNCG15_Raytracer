@@ -63,8 +63,8 @@ void renderScene()
         int end = (i + 1) * CAMSIZE / n_threads;
         std::cout << "thread " << i << " assigned to height " << start << "-" << end << "\n";
 
-        threads[i] = std::thread(renderSegment, start, end);
-        //threads[i] = std::thread(renderAlternatingPixels, n_threads, i);
+        //threads[i] = std::thread(renderSegment, start, end);
+        threads[i] = std::thread(renderAlternatingPixels, n_threads, i);
         //threads[i] = std::thread(renderPixelsInOrder);
     }
 
@@ -281,8 +281,6 @@ void addRoom()
     scene.add_triangle(Triangle(bot6, up6, up5, cl_5, DIFFUSE));
 }
 
-
-
 void addObjects() {
     // tetrahedron
     if(false)
@@ -301,29 +299,45 @@ void addObjects() {
     }
     
     //TETRAHEDRON 2
-    if(false)
+    if(true)
     {
-        Vector3 mid_point = Vector3(4.0, 2.0, 1.0);
+        Vector3 mid_point = Vector3(10.0, -3.0, 1.0);
         Vector3 tet1 = Vector3(-1.0, 0.0, 0.0) + mid_point; // cam-front
         Vector3 tet2 = Vector3(0.0, -2.0, -2.0) + mid_point; // cam-left
         Vector3 tet3 = Vector3(0.0, -2.0, 2.0) + mid_point; // cam-right
         Vector3 tet4 = Vector3(0.0, 2.0, 0.0) + mid_point; // cam top
 
         // tetrahedron
-        scene.add_triangle(Triangle(tet2, tet3, tet1, Vector3(1,1,1), DIFFUSE));
-        scene.add_triangle(Triangle(tet3, tet4, tet1, Vector3(1,1,1), DIFFUSE));
-        scene.add_triangle(Triangle(tet4, tet2, tet1, Vector3(1,1,1), DIFFUSE));
-        scene.add_triangle(Triangle(tet3, tet2, tet4, Vector3(1,1,1), DIFFUSE));
+        scene.add_triangle(Triangle(tet2, tet3, tet1, Vector3(1, 0, 0), DIFFUSE));
+        scene.add_triangle(Triangle(tet3, tet4, tet1, Vector3(1, 0, 0), DIFFUSE));
+        scene.add_triangle(Triangle(tet4, tet2, tet1, Vector3(1, 0, 0), DIFFUSE));
+        scene.add_triangle(Triangle(tet3, tet2, tet4, Vector3(1, 0, 0), DIFFUSE));
+    }
+
+    //TETRAHEDRON 2 copy
+    if (true)
+    {
+        Vector3 mid_point = Vector3(3.0, 0.0, 0.0);
+        Vector3 tet1 = Vector3(-1.0, 0.0, 0.0) + mid_point; // cam-front
+        Vector3 tet2 = Vector3(0.0, -1.0, -1.0) + mid_point; // cam-left
+        Vector3 tet3 = Vector3(0.0, -1.0, 1.0) + mid_point; // cam-right
+        Vector3 tet4 = Vector3(0.0, 1.0, 0.0) + mid_point; // cam top
+
+        // tetrahedron
+        scene.add_triangle(Triangle(tet2, tet3, tet1, Vector3(1, 1, 1), GLASS));
+        scene.add_triangle(Triangle(tet3, tet4, tet1, Vector3(1, 1, 1), GLASS));
+        scene.add_triangle(Triangle(tet4, tet2, tet1, Vector3(1, 1, 1), GLASS));
+        scene.add_triangle(Triangle(tet3, tet2, tet4, Vector3(1, 1, 1), GLASS));
     }
 
     if (true) {
-        scene.add_sphere(Sphere(Vector3(4,0,2), 2, Vector3(1,1,1), GLASS));
+        scene.add_sphere(Sphere(Vector3(4,-4,2), 1, Vector3(1,1,1), MIRROR));
     }
     if(true){
     
-        Vector3 box1 = Vector3(6.0, 2.0, -1.0);
-        Vector3 box2 = Vector3(6.0, 0.0, -1.0);
-        Vector3 box3 = Vector3(6.0, -3.0, -1.0);
+        Vector3 box1 = Vector3(6.0, 2.0, -3.0);
+        Vector3 box2 = Vector3(6.0, 0.0, -3.0);
+        Vector3 box3 = Vector3(6.0, -3.0, -3.0);
         
         addBox(box1, 1.0, DIFFUSE);
         addBox(box2, 2.0, DIFFUSE);

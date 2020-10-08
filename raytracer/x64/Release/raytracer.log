@@ -1,0 +1,32 @@
+﻿  raytracer.cpp
+D:\TNCG15_Raytracer\raytracer\Structures.h(158,23): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(185,22): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(188,20): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(191,17): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(222,13): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(248,38): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(268,23): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(274,17): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(275,17): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(370,30): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(372,33): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(373,33): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(444,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(445,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(464,1): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(506,1): warning C4305: 'initializing': truncation from 'double' to 'float'
+D:\TNCG15_Raytracer\raytracer\Structures.h(515,33): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(516,31): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(522,1): warning C4305: 'argument': truncation from 'double' to 'float'
+D:\TNCG15_Raytracer\raytracer\Structures.h(574,49): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(603,29): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\Structures.h(606,34): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\TNCG15_Raytracer\raytracer\raytracer.cpp(24,13): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+D:\TNCG15_Raytracer\raytracer\raytracer.cpp(109,15): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+D:\TNCG15_Raytracer\raytracer\raytracer.cpp(137,15): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+  Generating code
+  2 of 276 functions ( 0.7%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  raytracer.vcxproj -> D:\TNCG15_Raytracer\x64\Release\raytracer.exe

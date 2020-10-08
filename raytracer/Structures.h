@@ -401,7 +401,7 @@ public:
 
 };
 
-const int CAMSIZE = 400;
+const int CAMSIZE = 600;
 
 class Camera {
 public:
@@ -438,7 +438,7 @@ public:
 
         Vector3 lightresult;
         
-        size_t raysPerPixel = 8;
+        size_t raysPerPixel = 50;
         for (size_t ray_i = 0; ray_i < raysPerPixel; ray_i++ ) {
             Ray r;
             float rand_x = pixel_size*(get_random() - 0.5);
@@ -451,7 +451,7 @@ public:
         return lightresult.mult(1.0/raysPerPixel);
     }
 
-    Vector3 recursive(Ray inRay, int inside_glass_counter = 0) {
+    Vector3 recursive(Ray inRay, int inside_glass_counter = 0, float indirect_diffuse_path_length = 0) {
         float out_t;
         int out_index;
         int hit_type;
@@ -460,13 +460,25 @@ public:
         Vector3 in_dir = (inRay.end_point - inRay.start_point).normalize();
         Vector3 rayhit = inRay.start_point + (inRay.end_point - inRay.start_point).mult(out_t);
 
+        if (indirect_diffuse_path_length > 0) {
+            indirect_diffuse_path_length += (rayhit - inRay.start_point).abs();
+        }
+
         if (hit_type == LIGHT)
         {
             // if it hit the front
-            if(in_dir.dot(current_scene->lights[out_index].normal) < 0)
-                return current_scene->lights[out_index].color;
-            else
-                return Vector3();
+                if (in_dir.dot(current_scene->lights[out_index].normal) < 0) {
+                    if (indirect_diffuse_path_length > 0) {
+                        return current_scene->lights[out_index].color.mult(1.0 / (indirect_diffuse_path_length * indirect_diffuse_path_length));
+                    }
+                    else {
+                        return current_scene->lights[out_index].color;
+                    }
+                }
+                else
+                    return Vector3();
+ 
+            
         }
         //if ray hit a surface
         else if (out_t > 0.0001 && out_index != -1) {
@@ -488,17 +500,12 @@ public:
             
             if (type == DIFFUSE)
             {
-                // Russian roulette
-
-                // reflection, refractin studs <= 3
-                //if (P)
-                    //recursive(normalish riktning);
 
                 Vector3 accumulated_light = Vector3();
 
-                float kill_prob = 0.8;
+                float live_prob = 0.8;
 
-                if(russianRoulette(kill_prob)) // max(color.x,color.y,color.z)
+                if(russianRoulette(live_prob)) // max(color.x,color.y,color.z)
                 {
                     Vector3 u = in_dir.mult(-1);
                     Vector3 e1 = (u - t_normal.mult(u.dot(t_normal))).normalize();
@@ -512,13 +519,23 @@ public:
                     Ray r;
                     r.start_point = rayhit;
                     r.end_point = rayhit + ray_out_V;
-                    accumulated_light = recursive(r).mult(1.0 / kill_prob);
+                    accumulated_light = recursive(r,0,0.0000001).mult(0.9 / live_prob * cos(theta));
 				}
+
+
+                // first hit = 1
+                // 2 hit = 1/0.8
+                // 3 hit = 1/0.8^2fdsafvcz
 
                 //build local system https://en.wikibooks.org/wiki/Linear_Algebra/Orthogonal_Projection_Onto_a_Line
                 
                 // DO DIRECT LIGHT MONTE CARLO INTEGRATION
                 accumulated_light += current_scene->directLight(rayhit, t_normal);
+
+                if (indirect_diffuse_path_length > 0) {
+                    accumulated_light.mult(1.0 / (indirect_diffuse_path_length * indirect_diffuse_path_length));
+                }
+
                 return color.mult(accumulated_light);
             }
             else if (type == MIRROR)
@@ -530,13 +547,12 @@ public:
                 mirror_ray.end_point = rayhit + reflect_dir;
                 mirror_ray.start_point = rayhit;
 
-                Vector3 lightresult = recursive(mirror_ray);
+                Vector3 lightresult = recursive(mirror_ray,0, indirect_diffuse_path_length);
                 return lightresult;
             }
             else if (type == GLASS)
             {
 
-                bool entering_glass;
                 Vector3 out_light = Vector3();
                 float n1, n2;
                 // from glass into air
@@ -545,56 +561,42 @@ public:
                     n2 = 1.0;
                     // invert normal since the ray hits the backside of the triangle;
                     t_normal = t_normal.mult(-1.0);
-                    entering_glass = false;
+                    inside_glass_counter++;
                 }
                 // from air into glass
                 else {
                     n1 = 1.0;
                     n2 = 1.5;
-                    entering_glass = true;
+                    inside_glass_counter = 0;
 				}
 
                 float am = asinf(n2 / n1);
                 float theta = acosf(t_normal.dot(in_dir.normalize().mult(-1.0)));
 
-                // inside_glass
-                bool should_refract = true;
-                bool should_bounce = true;
+                // outside glass
+                // - always bounce (alltid) if(inside_glass_counter<N) = true
+                // - always refract (alltid)
 
-                if (inside_glass_counter > 0) {
-                    if (theta <= am) {
-                        should_refract = true;
-                        should_bounce = false;
-                    }
-                    else{
-                        should_refract = false;
-                        should_bounce = true;
-					}
-                }
-                else {
-                    should_refract = true;
-                    should_bounce = true;
-                }
+                // inside glass
+                // - bounce x times maximum  (if(inside_glass_counter<N))
+                // - sometimes refract (brewster)
 
-                if (inside_glass_counter == 2) {
-                    should_bounce = false;
-                }
-
+                int allowed_bounces = 4;
                 // r=d-2(d*n)*n
-                if (should_bounce) {
+                if (inside_glass_counter < allowed_bounces) {
                     Vector3 reflect_dir = in_dir - t_normal.mult(2.0 * in_dir.dot(t_normal));
 
                     Ray mirror_ray;
                     mirror_ray.end_point = rayhit + reflect_dir;
                     mirror_ray.start_point = rayhit;
                     if(inside_glass_counter>0){
-                        out_light = recursive(mirror_ray, inside_glass_counter + 1);
+                        out_light = recursive(mirror_ray, inside_glass_counter + 1, indirect_diffuse_path_length);
 					}else{
-                        out_light = recursive(mirror_ray, inside_glass_counter);
+                        out_light = recursive(mirror_ray, inside_glass_counter, indirect_diffuse_path_length);
 					}
                 }
 
-                if(should_refract){
+                if(inside_glass_counter == 0 || theta <= am){
                     float R0 = pow((n1 - n2) / (n1 + n2), 2);
 
                     float Rc = R0 + (1 - R0) * pow((1 - cos(theta)), 5);
@@ -610,23 +612,14 @@ public:
                     refract_ray.start_point = rayhit;
 
                     Vector3 lightresult_refract;
-                    if(entering_glass) {
-                        lightresult_refract = recursive(refract_ray, 1);
-                    }
-                    else {
-                        lightresult_refract = recursive(refract_ray, 0);
-                    }
+                    lightresult_refract = recursive(refract_ray, 0, indirect_diffuse_path_length);
 
                     // if it should ALSO bounce
-                    if (should_bounce) {
+                    if(inside_glass_counter < allowed_bounces)
                         out_light = out_light.mult(Rc) + lightresult_refract.mult(T);
-                    }
-                    else {
+                    else
                         out_light = lightresult_refract;
-                    }
-                    
 				}
-
                 
                 return out_light; 
             }
